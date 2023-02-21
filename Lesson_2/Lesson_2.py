@@ -62,16 +62,7 @@ def write_order_to_json(*, item, quantity, price, buyer, date: datetime):
         json.dump(orders, f, indent=4)
 
 
-def write_to_yaml():
-    data = {
-        1: ["1", "фывфыв"],
-        2: 0,
-        3: {
-            4: "12€",
-            5: "34¥",
-            6: "41₽"
-        }
-    }
+def write_to_yaml(data: dict):
     with open("data.yaml", "w", encoding="utf-8") as f:
         # Если allow_unicode=True, работает только в случае если символ есть в кодировке, к примеру "¥" нет в 1251
         # из-за чего запись в файл будет прервана ошибкой
@@ -79,13 +70,22 @@ def write_to_yaml():
 
 
 #  Проверка созданного yaml
-def read_yaml():
+def check_yaml(data: dict):
     with open("data.yaml", encoding="utf-8") as f:
-        data = yaml.load(f, yaml.FullLoader)
-        print(data)
+        f_data = yaml.load(f, yaml.FullLoader)
+        print(data == f_data)
 
 
 write_to_csv("main_data.csv")
 write_order_to_json(item=1, quantity=2, price=3, buyer=4, date=datetime.now())
-write_to_yaml()
-read_yaml()  # Проверка созданного yaml
+task_3_data = {
+    1: ["1", "фывфыв"],
+    2: 0,
+    3: {
+        4: "12€",
+        5: "34¥",
+        6: "41₽"
+    }
+}
+write_to_yaml(task_3_data)
+check_yaml(task_3_data)  # Проверка созданного yaml
