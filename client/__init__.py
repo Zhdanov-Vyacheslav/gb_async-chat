@@ -103,8 +103,8 @@ def prepare_config(options: Namespace) -> dict:
 
 def main():
     ap = ArgumentParser()
-    ap.add_argument("-a", dest="addr", required=True, help="IP-address or 'localhost'")
-    ap.add_argument("-p", dest="port", type=int, required=False, help="port in range 1024-49151")
+    ap.add_argument("addr", help="IP-address or 'localhost'")
+    ap.add_argument("--port", dest="port", type=int, required=False, help="port in range 1024-49151")
 
     options = ap.parse_args()
     config = prepare_config(options)
