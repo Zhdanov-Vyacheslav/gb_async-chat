@@ -1,0 +1,20 @@
+{
+  "$schema": "http://schema#",
+  "id": "urn:gb_achat-presence#",
+  "type": "object",
+  "properties": {
+    "action": {"type": "string", "enum":["presence"]},
+    "time": {"type": "number"},
+    "type": {"type": "string"},
+    "user": {
+      "type": "object",
+      "properties": {
+        "account_name": {"type": "string"},
+        "status": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["action", "time", "user"],
+  "additionalProperties": false
+}

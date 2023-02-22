@@ -1,0 +1,15 @@
+{
+  "$schema": "http://schema#",
+  "id": "urn:gb_achat-msg#",
+  "type": "object",
+  "properties": {
+    "action": {"type": "string", "enum":["msg"]},
+    "time": {"type": "number"},
+    "to": {"type": "string"},
+    "from": {"type": "string"},
+    "encoding": {"type": "string"},
+    "message": {"type": "string"}
+  },
+  "additionalProperties": false,
+  "required": ["action", "time", "from", "to", "message"]
+}
