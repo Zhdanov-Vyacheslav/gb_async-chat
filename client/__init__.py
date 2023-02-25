@@ -4,14 +4,19 @@ import re
 import time
 import traceback
 from argparse import Namespace, ArgumentParser
+from json import JSONDecodeError
 from socket import SOCK_STREAM, AF_INET, socket
+from typing import Optional
 
 CONFIG_PATH = os.getenv("CONFIG_PATH", os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "config.json"))
 
 
-def open_json(path: str, method: str = "r", encoding: str = "utf-8"):
-    with open(path, method, encoding=encoding) as f:
-        result = json.load(f)
+def open_json(path: str, encoding: str = "utf-8") -> Optional[dict]:
+    try:
+        with open(path, "r", encoding=encoding) as f:
+            result = json.load(f)
+    except (FileNotFoundError, JSONDecodeError, UnicodeDecodeError):
+        return None
     return result
 
 
@@ -79,25 +84,28 @@ class ChatClient:
                 break
 
 
-def prepare_config(options: Namespace) -> dict:
-    result = {}
-    try:
-        result = open_json(CONFIG_PATH)
-    except FileNotFoundError:
-        print("Config is None")
-    if result:
-        result = {**result["general"], **result["client"]}
+def prepare_config(options: Namespace, config_path) -> dict:
+    result = open_json(config_path)
 
+    if result is None:
+        raise FileNotFoundError("Config is not found in {}".format(config_path))
+
+    result = {**result["general"], **result["client"]}
     addr = re.match(result["RE_IP"], options.addr)
+
     if addr is None:
         raise ValueError(options.addr, "is not IP or 'localhost'")
     else:
         addr = addr[0]
+
     port = options.port if options.port is not None else result["DEFAULT_PORT"]
+
     if port not in range(*result["PORT_RANGE"]):
         raise ValueError("port: {} not in range 1024-49151".format(port))
+
     result["address"] = addr
     result["port"] = port
+
     return result
 
 
@@ -107,7 +115,7 @@ def main():
     ap.add_argument("--port", dest="port", type=int, required=False, help="port in range 1024-49151")
 
     options = ap.parse_args()
-    config = prepare_config(options)
+    config = prepare_config(options, config_path=CONFIG_PATH)
     client = ChatClient(config)
     try:
         client.connect()

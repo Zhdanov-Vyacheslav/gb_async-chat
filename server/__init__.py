@@ -6,6 +6,7 @@ import traceback
 from argparse import ArgumentParser, Namespace
 from json import JSONDecodeError
 from socket import AF_INET, SOCK_STREAM, socket
+from typing import Optional
 
 from jsonschema import FormatChecker
 from jsonschema.exceptions import ValidationError
@@ -14,44 +15,55 @@ from jsonschema.validators import Draft6Validator
 CONFIG_PATH = os.getenv("CONFIG_PATH", os.path.join(os.path.split(os.path.dirname(__file__))[0], "config.json"))
 
 
-def open_json(path: str, method: str = "r", encoding: str = "utf-8"):
-    with open(path, method, encoding=encoding) as f:
-        result = json.load(f)
+def open_json(path: str, encoding: str = "utf-8") -> Optional[dict]:
+    try:
+        with open(path, "r", encoding=encoding) as f:
+            result = json.load(f)
+    except (FileNotFoundError, JSONDecodeError):
+        return None
     return result
 
 
 def prepare_config(options: Namespace, config_path: str) -> dict:
-    result = {}
-    try:
-        result = open_json(config_path)
-    except FileNotFoundError:
-        print("Config is None")
-    if result:
-        result = {**result["general"], **result["server"]}
+    result = open_json(config_path)
 
+    if result is None:
+        raise FileNotFoundError("Config is not found in {}".format(config_path))
+
+    result = {**result["general"], **result["server"]}
     addr = re.match(result["RE_IP"], options.addr)
+
     if addr is None:
         raise ValueError(options.addr, "is not IP or 'localhost'")
     else:
         addr = addr[0]
+
     port = options.port if options.port is not None else result["DEFAULT_PORT"]
+
     if port not in range(*result["PORT_RANGE"]):
         raise ValueError("port: {} not in range 1024-49151".format(port))
+
     result["address"] = addr
     result["port"] = port
+
     return result
 
 
 class Validator(object):
     def __init__(self, schema_path: str):
         schema_path = os.path.join(os.path.split(os.path.dirname(__file__))[0], schema_path)
-        self.schema = open_json(schema_path)
+        schema = open_json(schema_path)
+        if schema is not None:
+            self.schema = schema
+        else:
+            raise FileNotFoundError("schema not found in {}".format(schema_path))
         checker = FormatChecker()
         self._validator = Draft6Validator(self.schema, format_checker=checker)
 
-    def validate_data(self, data: dict):
+    def validate_data(self, data: dict) -> bool:
         try:
             self._validator.validate(data)
+            return True
         except ValidationError as e:
             field = "-".join(e.absolute_path)
             raise ValidationError("Validate Error, field[{field}], error msg: {msg}"
@@ -108,23 +120,22 @@ class ChatServer:
         print("Получен запрос на соединение:", addr)
         self.client = client
         data = self.get_data()
-        self.presence_validator.validate_data(data)
-        client.send(self.ok())
-        self.chat()
+        if self.presence_validator.validate_data(data):
+            client.send(self.ok())
+            self.chat()
 
     def chat(self):
         while True:
             msg = self.get_data()
-            self.msg_validator.validate_data(msg)
-            print(msg)
-            self.client.send(self.ok("Сообщение получено"))
+            if self.msg_validator.validate_data(msg):
+                print(msg)
+                self.client.send(self.ok("Сообщение получено"))
 
 
 def main():
     ap = ArgumentParser()
     ap.add_argument("-a", dest="addr", required=False, default="0.0.0.0", help="IP-address or 'localhost'")
     ap.add_argument("-p", dest="port", type=int, required=False, help="port in range 1024-49151")
-
     options = ap.parse_args()
     config = prepare_config(options, config_path=CONFIG_PATH)
     server = ChatServer(config)
