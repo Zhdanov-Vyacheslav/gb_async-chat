@@ -12,11 +12,12 @@ from jsonschema import FormatChecker
 from jsonschema.exceptions import ValidationError
 from jsonschema.validators import Draft6Validator
 
-from log.server_log_config import logger
+from log.server_log_config import logger, log
 
 CONFIG_PATH = os.getenv("CONFIG_PATH", os.path.join(os.path.split(os.path.dirname(__file__))[0], "config.json"))
 
 
+@log
 def open_json(path: str, encoding: str = "utf-8") -> Optional[dict]:
     try:
         with open(path, "r", encoding=encoding) as f:
@@ -26,6 +27,7 @@ def open_json(path: str, encoding: str = "utf-8") -> Optional[dict]:
     return result
 
 
+@log
 def prepare_config(options: Namespace, config_path: str) -> dict:
     result = open_json(config_path)
 
@@ -103,6 +105,7 @@ class ChatServer:
         result = json.dumps(result).encode(self.encoding)
         return result
 
+    @log
     def ok(self, msg: str = None) -> bytes:
         result = {
             "response": 200

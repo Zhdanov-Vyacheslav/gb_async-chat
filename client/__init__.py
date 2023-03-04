@@ -8,11 +8,12 @@ from json import JSONDecodeError
 from socket import SOCK_STREAM, AF_INET, socket
 from typing import Optional
 
-from log.client_log_config import logger
+from log.client_log_config import logger, log
 
 CONFIG_PATH = os.getenv("CONFIG_PATH", os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "config.json"))
 
 
+@log
 def open_json(path: str, encoding: str = "utf-8") -> Optional[dict]:
     try:
         with open(path, "r", encoding=encoding) as f:
@@ -42,6 +43,7 @@ class ChatClient:
         data = json.dumps(data).encode(self.encoding)
         return data
 
+    @log
     def msg(self, to: str, msg: str) -> bytes:
         data = {
             "action": "msg",
@@ -100,6 +102,7 @@ class ChatClient:
                 break
 
 
+@log
 def prepare_config(options: Namespace, config_path) -> dict:
     result = open_json(config_path)
 
