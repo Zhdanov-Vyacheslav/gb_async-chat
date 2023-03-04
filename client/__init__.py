@@ -136,11 +136,11 @@ def main():
     try:
         client.connect()
     except Exception as e:
-        logger.critical(e.with_traceback(traceback.print_exc()))
+        logger.critical(e.with_traceback(traceback.print_exc()), exc_info=True)
 
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as ex:
-        logger.critical(ex.with_traceback(traceback.print_exc()))
+        logger.critical(ex.with_traceback(traceback.print_exc()), exc_info=True)

@@ -152,7 +152,7 @@ def main():
             logger.error(str(e))
         except Exception as e:
             msg = server.error_500("Все сломалось...")
-            logger.critical(e.with_traceback(traceback.print_exc()))
+            logger.critical(e.with_traceback(traceback.print_exc()), exc_info=True)
         finally:
             if msg is not None:
                 server.client.send(msg)
@@ -163,4 +163,4 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as ex:
-        logger.critical(ex.with_traceback(traceback.print_exc()))
+        logger.critical(ex.with_traceback(traceback.print_exc()), exc_info=True)
