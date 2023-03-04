@@ -8,6 +8,8 @@ from json import JSONDecodeError
 from socket import SOCK_STREAM, AF_INET, socket
 from typing import Optional
 
+from log.client_log_config import logger
+
 CONFIG_PATH = os.getenv("CONFIG_PATH", os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "config.json"))
 
 
@@ -69,8 +71,18 @@ class ChatClient:
             return True
 
     def connect(self):
+        logger.debug("client: {name}, try connect to {ip}:{port}".format(
+            name=self.account, ip=self._config["address"], port=self._config["port"]
+        ))
         self.socket.connect((self._config["address"], self._config["port"]))
-        self.socket.send(self.presence())
+        logger.info("client: {name}, connected to {ip}:{port}".format(
+            name=self.account, ip=self._config["address"], port=self._config["port"]
+        ))
+        presence = self.presence()
+        logger.debug("client: {name}, try send presence: {presence}".format(
+            name=self.account, presence=presence
+        ))
+        self.socket.send(presence)
         data = self.get_data()
         if self.check_data(data):
             self.chat()
@@ -78,7 +90,11 @@ class ChatClient:
     def chat(self):
         while True:
             msg = input("Сообщение: ")
-            self.socket.send(self.msg("server", msg))
+            msg = self.msg("server", msg)
+            logger.debug("client: {name}, try send msg: {msg}".format(
+                name=self.account, msg=msg
+            ))
+            self.socket.send(msg)
             data = self.get_data()
             if not self.check_data(data):
                 break
@@ -120,11 +136,11 @@ def main():
     try:
         client.connect()
     except Exception as e:
-        print(e.with_traceback(traceback.print_exc()))
+        logger.critical(e.with_traceback(traceback.print_exc()))
 
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as ex:
-        print(ex.with_traceback(traceback.print_exc()))
+        logger.critical(ex.with_traceback(traceback.print_exc()))

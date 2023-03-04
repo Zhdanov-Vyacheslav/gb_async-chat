@@ -12,6 +12,8 @@ from jsonschema import FormatChecker
 from jsonschema.exceptions import ValidationError
 from jsonschema.validators import Draft6Validator
 
+from log.server_log_config import logger
+
 CONFIG_PATH = os.getenv("CONFIG_PATH", os.path.join(os.path.split(os.path.dirname(__file__))[0], "config.json"))
 
 
@@ -115,9 +117,9 @@ class ChatServer:
         data = json.loads(data)
         return data
 
-    def accept(self) -> (socket, tuple):
+    def accept(self):
         client, addr = self.socket.accept()
-        print("Получен запрос на соединение:", addr)
+        logger.info("Запрос на соединение от: {}".format(addr))
         self.client = client
         data = self.get_data()
         if self.presence_validator.validate_data(data):
@@ -128,7 +130,8 @@ class ChatServer:
         while True:
             msg = self.get_data()
             if self.msg_validator.validate_data(msg):
-                print(msg)
+                client = self.client.getpeername()
+                logger.debug("{ip}:{port} прислал сообщение: {msg}".format(ip=client[0], port=client[1], msg=msg))
                 self.client.send(self.ok("Сообщение получено"))
 
 
@@ -139,17 +142,17 @@ def main():
     options = ap.parse_args()
     config = prepare_config(options, config_path=CONFIG_PATH)
     server = ChatServer(config)
-    print("Server rdy")
+    logger.info("Server rdy")
     while True:
         msg = None
         try:
             server.accept()
         except (JSONDecodeError, ValidationError) as e:
             msg = server.error_400("incorrect JSON object")
-            print(str(e))
+            logger.error(str(e))
         except Exception as e:
             msg = server.error_500("Все сломалось...")
-            print(e.with_traceback(traceback.print_exc()))
+            logger.critical(e.with_traceback(traceback.print_exc()))
         finally:
             if msg is not None:
                 server.client.send(msg)
@@ -160,4 +163,4 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as ex:
-        print(ex.with_traceback(traceback.print_exc()))
+        logger.critical(ex.with_traceback(traceback.print_exc()))
