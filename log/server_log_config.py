@@ -1,8 +1,9 @@
+import sys
 from logging.handlers import TimedRotatingFileHandler
 from logging import Formatter, getLogger
 import os
 
-DEBUG = os.getenv("DEBUG")
+DEBUG = os.getenv("DEBUG", "")
 DEBUG = True if "1" == DEBUG or "true" == DEBUG.lower() else False
 
 FORMATTER = Formatter("[%(asctime)s]-[%(levelname)s]-[%(module)s]: %(message)s")
