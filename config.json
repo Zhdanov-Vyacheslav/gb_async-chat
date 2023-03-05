@@ -3,11 +3,13 @@
     "encoding": "utf-8",
     "input_limit": 100000,
     "PORT_RANGE": [1024, 49152],
-    "DEFAULT_PORT": 7777,
+    "DEFAULT_PORT": 7778,
     "RE_IP": "^(?:(?:[01]?\\d\\d?|2[0-4]\\d|25[0-5])(?:\\.(?:[01]?\\d\\d?|2[0-4]\\d|25[0-5])){3})|localhost$"
   },
   "server": {
     "listen": 5,
+    "timeout": 0.2,
+    "select_wait": 1,
     "schema": {
       "msg": "schemas/msg.json",
       "presence": "schemas/presence.json"

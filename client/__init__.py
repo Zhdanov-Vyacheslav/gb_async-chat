@@ -8,12 +8,11 @@ from json import JSONDecodeError
 from socket import SOCK_STREAM, AF_INET, socket
 from typing import Optional
 
-from log.client_log_config import logger, log
+from log.client_log_config import logger
 
 CONFIG_PATH = os.getenv("CONFIG_PATH", os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "config.json"))
 
 
-@log
 def open_json(path: str, encoding: str = "utf-8") -> Optional[dict]:
     try:
         with open(path, "r", encoding=encoding) as f:
@@ -24,11 +23,12 @@ def open_json(path: str, encoding: str = "utf-8") -> Optional[dict]:
 
 
 class ChatClient:
-    def __init__(self, config):
+    def __init__(self, config: dict, mode: str = "r"):
         self._config = config
         self.encoding = config["encoding"]
         self.socket = socket(AF_INET, SOCK_STREAM)
         self.account = config["account"]
+        self.mode = mode  # Временно, для выполнения ДЗ-7
 
     def presence(self) -> bytes:
         data = {
@@ -43,7 +43,6 @@ class ChatClient:
         data = json.dumps(data).encode(self.encoding)
         return data
 
-    @log
     def msg(self, to: str, msg: str) -> bytes:
         data = {
             "action": "msg",
@@ -90,19 +89,28 @@ class ChatClient:
             self.chat()
 
     def chat(self):
-        while True:
-            msg = input("Сообщение: ")
-            msg = self.msg("server", msg)
-            logger.debug("client: {name}, try send msg: {msg}".format(
-                name=self.account, msg=msg
-            ))
-            self.socket.send(msg)
-            data = self.get_data()
-            if not self.check_data(data):
-                break
+        # Временная модификация, для выполнения ДЗ-7
+        if self.mode == "w":
+            while True:
+                msg = input("Сообщение: ")
+                msg = self.msg("server", msg)
+                logger.debug("client: {name}, try send msg: {msg}".format(
+                    name=self.account, msg=msg
+                ))
+                self.socket.send(msg)
+                # data = self.get_data()
+                # if not self.check_data(data):
+                #     break
+        if self.mode == "r":
+            while True:
+                data = self.get_data()
+                if data is not None:
+                    logger.debug("Server, send msg: {msg}".format(
+                        name=self.account, msg=data
+                    ))
+                    print("{user}: {msg}".format(user=data["from"], msg=data["message"]))
 
 
-@log
 def prepare_config(options: Namespace, config_path) -> dict:
     result = open_json(config_path)
 
@@ -132,10 +140,14 @@ def main():
     ap = ArgumentParser()
     ap.add_argument("addr", help="IP-address or 'localhost'")
     ap.add_argument("--port", dest="port", type=int, required=False, help="port in range 1024-49151")
+    # Временный ключ, для выполнения ДЗ-7
+    ap.add_argument(
+        "--mode", dest="mode", default="r", choices=['r', 'w'],
+        help="client work mode: 'w'- write to the general chat, 'r' - receive messages from the general chat")
 
     options = ap.parse_args()
     config = prepare_config(options, config_path=CONFIG_PATH)
-    client = ChatClient(config)
+    client = ChatClient(config, mode=options.mode)
     try:
         client.connect()
     except Exception as e:
