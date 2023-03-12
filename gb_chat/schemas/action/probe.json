@@ -1,0 +1,11 @@
+{
+  "$schema": "http://schema#",
+  "id": "urn:gb_achat-probe#",
+  "type": "object",
+  "properties": {
+    "action": {"type": "string", "enum":["probe"]},
+    "time": {"type": "number"}
+  },
+  "required": ["action", "time"],
+  "additionalProperties": false
+}

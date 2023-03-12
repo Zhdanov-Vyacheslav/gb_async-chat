@@ -2,8 +2,8 @@ import json
 import os
 import unittest
 
-from server import Validator
-from client import ChatClient
+from gb_chat.client import ChatClient
+from gb_chat.tools.validator import Validator
 
 CONFIG_PATH = os.path.join(os.path.split(os.path.dirname(__file__))[0], "config.json")
 

@@ -1,25 +1,8 @@
 import json
-import os
-import re
 import time
-import traceback
-from argparse import Namespace, ArgumentParser
-from json import JSONDecodeError
 from socket import SOCK_STREAM, AF_INET, socket
-from typing import Optional
 
-from log.client_log_config import logger
-
-CONFIG_PATH = os.getenv("CONFIG_PATH", os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "config.json"))
-
-
-def open_json(path: str, encoding: str = "utf-8") -> Optional[dict]:
-    try:
-        with open(path, "r", encoding=encoding) as f:
-            result = json.load(f)
-    except (FileNotFoundError, JSONDecodeError, UnicodeDecodeError):
-        return None
-    return result
+from .logger import logger
 
 
 class ChatClient:
@@ -111,51 +94,6 @@ class ChatClient:
                     print("{user}: {msg}".format(user=data["from"], msg=data["message"]))
 
 
-def prepare_config(options: Namespace, config_path) -> dict:
-    result = open_json(config_path)
-
-    if result is None:
-        raise FileNotFoundError("Config is not found in {}".format(config_path))
-
-    result = {**result["general"], **result["client"]}
-    addr = re.match(result["RE_IP"], options.addr)
-
-    if addr is None:
-        raise ValueError(options.addr, "is not IP or 'localhost'")
-    else:
-        addr = addr[0]
-
-    port = options.port if options.port is not None else result["DEFAULT_PORT"]
-
-    if port not in range(*result["PORT_RANGE"]):
-        raise ValueError("port: {} not in range 1024-49151".format(port))
-
-    result["address"] = addr
-    result["port"] = port
-
-    return result
 
 
-def main():
-    ap = ArgumentParser()
-    ap.add_argument("addr", help="IP-address or 'localhost'")
-    ap.add_argument("--port", dest="port", type=int, required=False, help="port in range 1024-49151")
-    # Временный ключ, для выполнения ДЗ-7
-    ap.add_argument(
-        "--mode", dest="mode", default="r", choices=['r', 'w'],
-        help="client work mode: 'w'- write to the general chat, 'r' - receive messages from the general chat")
 
-    options = ap.parse_args()
-    config = prepare_config(options, config_path=CONFIG_PATH)
-    client = ChatClient(config, mode=options.mode)
-    try:
-        client.connect()
-    except Exception as e:
-        logger.critical(e.with_traceback(traceback.print_exc()), exc_info=True)
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except Exception as ex:
-        logger.critical(ex.with_traceback(traceback.print_exc()), exc_info=True)

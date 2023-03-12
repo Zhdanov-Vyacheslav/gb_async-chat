@@ -2,7 +2,7 @@ import json
 import os
 import unittest
 
-from server import ChatServer
+from gb_chat.server import ChatServer
 
 CONFIG_PATH = os.path.join(os.path.split(os.path.dirname(__file__))[0], "config.json")
 
