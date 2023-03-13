@@ -8,19 +8,24 @@ from ..tools.file import open_json
 
 
 class Validator(object):
-    def __init__(self, schema_path: str):
-        schema_path = os.path.join(os.path.split(os.path.dirname(__file__))[0], schema_path)
-        schema = open_json(schema_path)
-        if schema is not None:
-            self.schema = schema
-        else:
-            raise FileNotFoundError("schema not found in {}".format(schema_path))
-        checker = FormatChecker()
-        self._validator = Draft6Validator(self.schema, format_checker=checker)
+    def __init__(self, schemes: dict):
+        self.schemes = {}
+        self._validator = {}
+        self.init(schemes)
 
-    def validate_data(self, data: dict) -> bool:
+    def init(self, schemas: dict):
+        checker = FormatChecker()
+        for name, path in schemas.items():
+            schema_path = os.path.join(os.path.split(os.path.dirname(__file__))[0], path)
+            schema = open_json(schema_path)
+            if schema is None:
+                raise FileNotFoundError("schema not found in {}".format(schema_path))
+            self.schemes.setdefault(name, schema)
+            self._validator.setdefault(name, Draft6Validator(schema, format_checker=checker))
+
+    def validate_data(self, name: str, data: dict) -> bool:
         try:
-            self._validator.validate(data)
+            self._validator[name].validate(data)
             return True
         except ValidationError as e:
             field = "-".join(e.absolute_path)

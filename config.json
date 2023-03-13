@@ -11,8 +11,10 @@
     "timeout": 0.2,
     "select_wait": 1,
     "schema": {
-      "msg": "schemas/msg.json",
-      "presence": "schemas/presence.json"
+      "action": "schemas/action.json",
+      "msg": "schemas/action/msg.json",
+      "presence": "schemas/action/presence.json",
+      "authenticate": "schemas/action/authenticate.json"
     }
   },
   "client": {

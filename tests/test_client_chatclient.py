@@ -25,7 +25,7 @@ class ChatClientTestCase(unittest.TestCase):
         try:
             presence = json.loads(presence)
             validator = Validator(self.schemas["presence"])
-            return self.assertTrue(validator.validate_data(presence))
+            return self.assertTrue(validator.validate_data("presence", presence))
         except Exception:
             return self.fail()
 
@@ -34,7 +34,7 @@ class ChatClientTestCase(unittest.TestCase):
         try:
             msg = json.loads(msg)
             validator = Validator(self.schemas["msg"])
-            return self.assertTrue(validator.validate_data(msg))
+            return self.assertTrue(validator.validate_data("msg", msg))
         except Exception:
             return self.fail()
 
