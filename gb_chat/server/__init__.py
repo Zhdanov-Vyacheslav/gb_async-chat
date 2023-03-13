@@ -71,14 +71,18 @@ class ChatServer:
 
     def writer(self, clients: list[socket], msgs: dict):
         for sender, msg in msgs.items():
-            for client in clients:
-                try:
-                    self.send_data(client=client, data=msg)
-                except ConnectionResetError:
-                    if client in self.clients:
-                        log = str(client.getpeername()) + " disconnected"
-                        logger.info(log)
-                        self.clients.pop(client)
+            if msg["to"] == "#server":
+                for client in clients:
+                    try:
+                        self.send_data(client=client, data=msg)
+                    except ConnectionResetError:
+                        if client in self.clients:
+                            log = str(client.getpeername()) + " disconnected"
+                            logger.info(log)
+                            self.clients.pop(client)
+            elif msg["to"] in self.clients.values():
+                client = list(self.clients.keys())[list(self.clients.values()).index(msg["to"])]
+                self.send_data(client=client, data=msg)
 
     def reader(self, clients: list[socket]) -> dict:
         error = None

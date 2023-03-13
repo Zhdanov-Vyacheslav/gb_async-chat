@@ -12,16 +12,12 @@ def main():
     ap = ArgumentParser()
     ap.add_argument("addr", help="IP-address or 'localhost'")
     ap.add_argument("--port", dest="port", type=int, required=False, help="port in range 1024-49151")
-    # Временный ключ, для выполнения ДЗ-7
-    ap.add_argument(
-        "--mode", dest="mode", default="r", choices=['r', 'w'],
-        help="client work mode: 'w'- write to the general chat, 'r' - receive messages from the general chat")
 
     options = ap.parse_args()
     config = prepare_config(options, config_path=CONFIG_PATH, service="client")
-    client = ChatClient(config, mode=options.mode)
+    client = ChatClient(config)
     try:
-        client.connect()
+        client.run()
     except Exception as e:
         logger.critical(e.with_traceback(traceback.print_exc()), exc_info=True)
 

@@ -4,6 +4,7 @@ import time
 import traceback
 from json import JSONDecodeError
 from socket import SOCK_STREAM, AF_INET, socket
+from threading import Thread
 from typing import Optional
 
 from jsonschema.exceptions import ValidationError
@@ -21,6 +22,7 @@ class ChatClient:
         self.account = config["account"]
         self.mode = mode  # Временно, для выполнения ДЗ-7
         self.validator = Validator(config["schema"])
+        self.__is_connected = False
 
     def send_data(self, *, data: dict):
         data = json.dumps(data).encode(self.encoding)
@@ -57,7 +59,7 @@ class ChatClient:
         self.send_data(data=presence)
         data = self.get_data()
         if self.check_data(data):
-            self.chat()
+            self.__is_connected = True
 
     def action(self, data: dict) -> Optional[dict]:
         msg = None
@@ -99,6 +101,10 @@ class ChatClient:
             elif command == "connect":
                 print("Введите знак '!' чтобы перейти в cli ")
                 self.connect()
+                if self.__is_connected:
+                    break
+                else:
+                    print("Подключение не удалось")
             elif command == "name":
                 if sys._getframe(1).f_code.co_name == "run":
                     name = input("Ведите имя: ")
@@ -116,20 +122,29 @@ class ChatClient:
                     pass
 
     def chat(self):
-        # Временная модификация, для выполнения ДЗ-7
-        if self.mode == "w":
-            while True:
-                addressee = input("Введите адресата: ")
-                msg = input("Сообщение: ")
-                if msg == "!" or addressee == "!":
-                    self.cli()
-                msg = request_msg(sender=self.account["login"], to=addressee, encoding=self.encoding, message=msg)
-                logger.debug("client: {name}, try send msg: {msg}".format(
-                    name=self.account["login"], msg=msg
-                ))
-                self.send_data(data=msg)
-        if self.mode == "r":
-            self.receiver()
+        while True:
+            addressee = input("Введите адресата: ")
+            msg = input("Сообщение: ")
+            if msg == "!" or addressee == "!":
+                self.cli()
+            msg = request_msg(sender=self.account["login"], to=addressee, encoding=self.encoding, message=msg)
+            logger.debug("client: {name}, try send msg: {msg}".format(
+                name=self.account["login"], msg=msg
+            ))
+            self.send_data(data=msg)
 
     def run(self):
         self.cli()
+        if self.__is_connected:
+            receiver = Thread(target=self.receiver)
+            receiver.daemon = True
+            receiver.start()
+            chat = Thread(target=self.chat)
+            chat.daemon = True
+            chat.start()
+            while True:
+                if receiver.is_alive() and chat.is_alive():
+                    time.sleep(1)
+                    continue
+                else:
+                    break
