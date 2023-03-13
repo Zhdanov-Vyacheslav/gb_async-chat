@@ -101,10 +101,17 @@ class ChatServer:
                 logger.error(str(e))
             finally:
                 if error is not None:
-                    self.send_data(client=client, data=error)
-                    client.close()
-                    if client in self.clients:
-                        self.clients.pop(client)
+                    try:
+                        self.send_data(client=client, data=error)
+                        client.close()
+                    except ConnectionResetError:
+                        if client in self.clients:
+                            user = self.clients.pop(client)
+                            msg = "Пользователь: '{user}' покинул чат!".format(user=user)
+                            msgs[client] = request_msg(sender="server", to="#server",
+                                                       encoding=self.encoding, message=msg)
+                        logger.info("Потеряно соединение с: {}".format(client.getpeername()))
+
         return msgs
 
     def accept(self):
