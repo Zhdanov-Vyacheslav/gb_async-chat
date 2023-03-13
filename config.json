@@ -18,6 +18,14 @@
     }
   },
   "client": {
-    "account": "Test"
+    "account": {
+      "login": "test",
+      "password": "123"
+    },
+    "schema": {
+      "action": "schemas/action.json",
+      "msg": "schemas/action/msg.json",
+      "probe": "schemas/action/probe.json"
+    }
   }
 }
