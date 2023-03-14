@@ -2,12 +2,12 @@ import json
 import os
 import unittest
 
-from client import open_json
+from gb_chat.tools.file import open_json
 
 CONFIG_PATH = os.path.join(os.path.split(os.path.dirname(__file__))[0], "config.json")
 
 
-class ClientOpenJsonTestCase(unittest.TestCase):
+class ToolsOpenJsonTestCase(unittest.TestCase):
     def setUp(self):
         with open("test.txt", "w", encoding="utf-8") as f:
             f.write("hello")

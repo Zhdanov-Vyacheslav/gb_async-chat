@@ -1,0 +1,30 @@
+{
+  "$schema": "http://schema#",
+  "id": "urn:gb_achat-action#",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum":["presence", "probe", "msg", "quit", "authenticate", "join", "leave"]
+    },
+    "time": {"type": "number"},
+    "type": {"type": "string"},
+	"room": {"type": "string"},
+    "to": {"type": "string"},
+    "from": {"type": "string"},
+    "encoding": {"type": "string"},
+    "message": {"type": "string"},
+    "user": {
+      "type": "object",
+      "properties": {
+        "account_name": {"type": "string"},
+        "status": {"type": "string"},
+        "password": {"type": "string"}
+      },
+      "required": ["account_name"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["action", "time"],
+  "additionalProperties": false
+}

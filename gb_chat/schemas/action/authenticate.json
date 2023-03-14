@@ -1,0 +1,19 @@
+{
+  "$schema": "http://schema#",
+  "id": "urn:gb_achat-authenticate#",
+  "type": "object",
+  "properties": {
+    "action": {"type": "string", "enum":["authenticate"]},
+    "time": {"type": "number"},
+    "user": {
+      "type": "object",
+      "properties": {
+        "account_name": {"type": "string"},
+        "password": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["action", "time", "user"],
+  "additionalProperties": false
+}

@@ -12,6 +12,7 @@
         "account_name": {"type": "string"},
         "status": {"type": "string"}
       },
+      "required": ["account_name"],
       "additionalProperties": false
     }
   },
