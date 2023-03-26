@@ -10,10 +10,13 @@ from .logger import logger
 from gb_chat.tools.validator import Validator
 from gb_chat.tools.responses import error_400, error_500, ok, RESPONSE
 from gb_chat.tools.requests import request_msg
+from gb_chat.tools.descriptors import Port
 from gb_chat.metaclass import ServerVerifier
 
 
 class ChatServer(metaclass=ServerVerifier):
+    port = Port()
+
     def __init__(self, config):
         self.clients = {}
         self.socket = None
