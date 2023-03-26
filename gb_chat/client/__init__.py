@@ -12,16 +12,26 @@ from jsonschema.exceptions import ValidationError
 from .logger import logger
 from gb_chat.tools.validator import Validator
 from gb_chat.tools.requests import request_msg, request_presence, request_quit
+from gb_chat.metaclass import ClientVerifier
 
 
-class ChatClient:
+class ChatClient(metaclass=ClientVerifier):
     def __init__(self, config: dict):
         self._config = config
         self.encoding = config["encoding"]
-        self.socket = socket(AF_INET, SOCK_STREAM)
+        self.socket = None
+        self.address = config["address"]
+        self.port = config["port"]
         self.account = config["account"]
         self.validator = Validator(config["schema"])
         self.__is_connected = False
+
+    def init_socket(self):
+        _socket = socket(AF_INET, SOCK_STREAM)
+        self.socket = _socket
+        logger.info("Client socket init at {address}:{port}".format(
+            address=self.address, port=self.port
+        ))
 
     def send_data(self, *, data: dict):
         data = json.dumps(data).encode(self.encoding)
@@ -44,6 +54,7 @@ class ChatClient:
             return True
 
     def connect(self):
+        self.init_socket()
         logger.debug("client: {name}, try connect to {ip}:{port}".format(
             name=self.account["login"], ip=self._config["address"], port=self._config["port"]
         ))
