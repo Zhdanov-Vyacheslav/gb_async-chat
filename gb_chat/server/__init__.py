@@ -10,20 +10,31 @@ from .logger import logger
 from gb_chat.tools.validator import Validator
 from gb_chat.tools.responses import error_400, error_500, ok, RESPONSE
 from gb_chat.tools.requests import request_msg
+from gb_chat.metaclass import ServerVerifier
 
 
-class ChatServer:
+class ChatServer(metaclass=ServerVerifier):
     def __init__(self, config):
         self.clients = {}
         self.socket = None
+        self.address = config["address"]
+        self.port = config["port"]
+        self.listen = config["listen"]
+        self.timeout = config["timeout"]
         self.validator = Validator(config["schema"])
         self.encoding = config["encoding"]
         self.limit = config["input_limit"]
         self.select_wait = config["select_wait"]
-        self.socket = socket(AF_INET, SOCK_STREAM)
-        self.socket.bind((config["address"], config["port"]))
-        self.socket.listen(config["listen"])
-        self.socket.settimeout(config["timeout"])
+
+    def init_socket(self):
+        _socket = socket(AF_INET, SOCK_STREAM)
+        _socket.bind((self.address, self.port))
+        _socket.settimeout(self.timeout)
+        self.socket = _socket
+        self.socket.listen(self.listen)
+        logger.info("Server started at {address}:{port}, timeout={timeout}, listen={listen}".format(
+            address=self.address, port=self.port, timeout=self.timeout, listen=self.listen
+        ))
 
     def get_data(self, *, client: socket) -> dict:
         try:
@@ -141,6 +152,7 @@ class ChatServer:
             logger.error(str(e))
 
     def run(self):
+        self.init_socket()
         while True:
             self.accept()
             read = []
