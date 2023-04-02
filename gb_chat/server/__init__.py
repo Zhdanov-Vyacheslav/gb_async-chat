@@ -12,6 +12,7 @@ from gb_chat.tools.responses import error_400, error_500, ok, RESPONSE
 from gb_chat.tools.requests import request_msg
 from gb_chat.tools.descriptors import Port
 from gb_chat.metaclass import ServerVerifier
+from gb_chat.storage.server import ServerDB
 
 
 class ChatServer(metaclass=ServerVerifier):
@@ -28,8 +29,34 @@ class ChatServer(metaclass=ServerVerifier):
         self.encoding = config["encoding"]
         self.limit = config["input_limit"]
         self.select_wait = config["select_wait"]
+        self.db = ServerDB("server.db")
 
-    def init_socket(self):
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        msg = request_msg(sender="server", to="global", encoding=self.encoding, message="Сервер выключился!")
+        for client in self.clients:
+            try:
+                self.send_data(client=client, data=msg)
+                client.close()
+            except ConnectionResetError:
+                pass
+        self.db.Contacts.drop_table()
+        self.db.close()
+        if self.socket is not None:
+            self.socket.close()
+
+    def init(self):
+        self.db.init()
+        # Принудительная очистка списка пользователей
+        self.db.Contacts.drop_table()
+        self.db.Contacts.create_table()
+        self.clients = {}
+
+        self.__init_socket()
+
+    def __init_socket(self):
         _socket = socket(AF_INET, SOCK_STREAM)
         _socket.bind((self.address, self.port))
         _socket.settimeout(self.timeout)
@@ -82,6 +109,7 @@ class ChatServer(metaclass=ServerVerifier):
             self.clients.pop(client)
             self.send_data(client=client, data=msg)
             client.close()
+            self.db.Contacts.delete_by_client(self.db.Client, name=self.clients[client])
 
     def writer(self, clients: list[socket], msgs: dict):
         for sender, msg in msgs.items():
@@ -128,6 +156,15 @@ class ChatServer(metaclass=ServerVerifier):
 
         return msgs
 
+    def login(self, account: dict, client: socket):
+        name = account["account_name"]
+        client_id = self.db.Clients.login(name=name)
+        contact = self.db.Contacts.get(client_id=client_id)
+        if contact is None:
+            ip, port = client.getpeername()
+            history_id = self.db.History.login(client_id=client_id, ip=ip, port=port)
+            self.db.Contacts.create(client_id=client_id, history_id=history_id)
+
     def accept(self):
         try:
             client, addr = self.socket.accept()
@@ -143,6 +180,7 @@ class ChatServer(metaclass=ServerVerifier):
                 if user not in self.clients.values():
                     self.clients.setdefault(client, user)
                     self.send_data(client=client, data=ok("Welcome"))
+                    self.login(data["user"], client)
                 else:
                     self.send_data(client=client, data=error_400(code=409))
                     client.close()
@@ -155,7 +193,7 @@ class ChatServer(metaclass=ServerVerifier):
             logger.error(str(e))
 
     def run(self):
-        self.init_socket()
+        self.init()
         while True:
             self.accept()
             read = []
