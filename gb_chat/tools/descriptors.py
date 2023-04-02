@@ -3,7 +3,7 @@ PORT_RANGE = [1024, 49152]
 
 class Port:
     def __set_name__(self, owner, name):
-        self.name = name
+        self.name = "_"+name
 
     def __set__(self, instance, value):
         try:
