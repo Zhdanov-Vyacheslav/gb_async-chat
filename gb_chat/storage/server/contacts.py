@@ -1,4 +1,4 @@
-from peewee import AutoField, ForeignKeyField, Model, DoesNotExist
+from peewee import AutoField, ForeignKeyField
 
 from gb_chat.storage import BaseModel
 from gb_chat.storage.server.client import Client
@@ -14,7 +14,16 @@ class Contacts(BaseModel):
         table_name = "Contacts"
 
     @classmethod
-    def delete_by_client(cls, client: Client, **kwargs):
-        _id = client.get(**kwargs)
-        contact = cls.get(client_id=_id)
-        contact.delete_instance()
+    def delete_by_client(cls, *args, **kwargs):
+        client = Client.get(*args, **kwargs)
+        contact = cls.get(cls.client_id == client.id)
+        if contact is not None:
+            contact.delete_instance()
+            contact.save()
+
+    @classmethod
+    def list(cls, *args, **kwargs):
+        result = []
+        for user in Client.select(Client.name).join(cls):
+            result.append(user.name)
+        return result

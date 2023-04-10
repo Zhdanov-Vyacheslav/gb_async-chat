@@ -2,3 +2,4 @@ chardet~=5.1.0
 PyYAML~=6.0
 jsonschema~=4.17.3
 peewee~=3.16.0
+PyQt5~=5.15.9

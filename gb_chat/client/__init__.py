@@ -13,6 +13,7 @@ from .logger import logger
 from gb_chat.tools.validator import Validator
 from gb_chat.tools.requests import request_msg, request_presence, request_quit
 from gb_chat.metaclass import ClientVerifier
+from gb_chat.storage.client import ClientDB
 
 
 class ChatClient(metaclass=ClientVerifier):
@@ -25,8 +26,11 @@ class ChatClient(metaclass=ClientVerifier):
         self.account = config["account"]
         self.validator = Validator(config["schema"])
         self.__is_connected = False
+        self.db = ClientDB("client.db")
+        self.session = 1
 
-    def init_socket(self):
+    def init(self):
+        self.db.init()
         _socket = socket(AF_INET, SOCK_STREAM)
         self.socket = _socket
         logger.info("Client socket init at {address}:{port}".format(
@@ -54,7 +58,7 @@ class ChatClient(metaclass=ClientVerifier):
             return True
 
     def connect(self):
-        self.init_socket()
+        self.init()
         logger.debug("client: {name}, try connect to {ip}:{port}".format(
             name=self.account["login"], ip=self._config["address"], port=self._config["port"]
         ))
@@ -76,6 +80,11 @@ class ChatClient(metaclass=ClientVerifier):
         action = data["action"]
         if action == "msg":
             if self.validator.validate_data(action, data):
+                sender = data["from"]
+                recipient = data["to"]
+                self.db.Messages.create(session=self.session, message=data["message"],
+                                        sender=sender, recipient=recipient,
+                                        is_private=(sender.find("#") == -1 and recipient.find("#") == -1))
                 msg = data
         elif action == "probe":
             if self.validator.validate_data(action, data):
