@@ -2,10 +2,12 @@ import json
 import select
 from json import JSONDecodeError
 from socket import AF_INET, SOCK_STREAM, socket
+from threading import Thread
 from typing import Optional
 
 from jsonschema.exceptions import ValidationError
 
+from .contacts import Contacts
 from .logger import logger
 from gb_chat.tools.validator import Validator
 from gb_chat.tools.responses import error_400, error_500, ok, RESPONSE
@@ -15,7 +17,7 @@ from gb_chat.metaclass import ServerVerifier
 from gb_chat.storage.server import ServerDB
 
 
-class ChatServer(metaclass=ServerVerifier):
+class ChatServer(Thread):
     port = Port()
 
     def __init__(self, config):
@@ -30,6 +32,8 @@ class ChatServer(metaclass=ServerVerifier):
         self.limit = config["input_limit"]
         self.select_wait = config["select_wait"]
         self.db = ServerDB("server.db")
+        self.contacts = Contacts(self.db)
+        super().__init__()
 
     def __del__(self):
         self.close()
@@ -90,7 +94,21 @@ class ChatServer(metaclass=ServerVerifier):
                 self.send_data(client=client, data=ok())
         elif action == "authenticate":
             if self.validator.validate_data(action, data):
-                pass
+                if data["user"].get("password", None) is not None:
+                    if self.login(data[["user"]], client):
+                        self.send_data(client=client, data=ok())
+                    else:
+                        self.send_data(client=client, data=error_400(code=409))
+        elif action in ["add_contact", "del_contact", "get_contacts"]:
+            if self.validator.validate_data("contacts", data):
+                result = self.contacts(data, client)
+                if isinstance(result, bool):
+                    if result:
+                        self.send_data(client=client, data=ok())
+                    else:
+                        self.send_data(client=client, data=error_400())
+                else:
+                    self.send_data(client=client, data=ok(str(result), code=202))
         elif action == "quit":
             if client in self.clients:
                 msg = request_msg(
@@ -109,7 +127,7 @@ class ChatServer(metaclass=ServerVerifier):
             self.clients.pop(client)
             self.send_data(client=client, data=msg)
             client.close()
-            self.db.Contacts.delete_by_client(self.db.Client, name=self.clients[client])
+            self.db.Contacts.delete_by_client(self.db.Clients.name == self.clients[client])
 
     def writer(self, clients: list[socket], msgs: dict):
         for sender, msg in msgs.items():
@@ -158,12 +176,16 @@ class ChatServer(metaclass=ServerVerifier):
 
     def login(self, account: dict, client: socket):
         name = account["account_name"]
+        password = account.get("password", None)
         client_id = self.db.Clients.login(name=name)
-        contact = self.db.Contacts.get(client_id=client_id)
+        contact = self.db.Contacts.get(self.db.Contacts.client_id == client_id)
         if contact is None:
             ip, port = client.getpeername()
-            history_id = self.db.History.login(client_id=client_id, ip=ip, port=port)
+            history_id = self.db.History.login(client_id=client_id, ip=ip, port=port, password=password)
             self.db.Contacts.create(client_id=client_id, history_id=history_id)
+            return True
+        else:
+            return False
 
     def accept(self):
         try:
@@ -194,6 +216,7 @@ class ChatServer(metaclass=ServerVerifier):
 
     def run(self):
         self.init()
+        j = self.db.Clients.select()
         while True:
             self.accept()
             read = []

@@ -4,7 +4,12 @@
     "input_limit": 100000,
     "PORT_RANGE": [1024, 49152],
     "DEFAULT_PORT": 7778,
-    "RE_IP": "^(?:(?:[01]?\\d\\d?|2[0-4]\\d|25[0-5])(?:\\.(?:[01]?\\d\\d?|2[0-4]\\d|25[0-5])){3})|localhost$"
+    "DEFAULT_ADDRESS": "localhost",
+    "RE_IP": "^(?:(?:[01]?\\d\\d?|2[0-4]\\d|25[0-5])(?:\\.(?:[01]?\\d\\d?|2[0-4]\\d|25[0-5])){3})|localhost$",
+    "db": {
+      "path": "",
+      "name": "server.db"
+    }
   },
   "server": {
     "listen": 5,

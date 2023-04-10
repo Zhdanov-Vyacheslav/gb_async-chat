@@ -1,17 +1,15 @@
-from peewee import SqliteDatabase, JOIN
+from peewee import SqliteDatabase
 
-from gb_chat.storage.server.client import Client
-from gb_chat.storage.server.contacts import Contacts
-from gb_chat.storage.server.history import History
+from gb_chat.storage.client.contacts import Contacts
+from gb_chat.storage.client.messages import Messages
 
 TABLES = [
     Contacts,
-    Client,
-    History
+    Messages
 ]
 
 
-class ServerDB:
+class ClientDB:
     def __init__(self, path):
         self.path = path
         self.__db = None
@@ -35,6 +33,6 @@ class ServerDB:
 
 
 if __name__ == "__main__":
-    s = ServerDB("lol.db")
+    s = ClientDB("lol.db")
     s.init()
     s.close()
