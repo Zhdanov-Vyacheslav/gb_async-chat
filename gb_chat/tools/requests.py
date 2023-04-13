@@ -70,3 +70,12 @@ def request_leave(room: str) -> dict:
         "room": room
     }
     return data
+
+
+def request_get_contacts(login: str) -> dict:
+    data = {
+        "action": "get_contacts",
+        "time": time.time(),
+        "user_login": login
+    }
+    return data

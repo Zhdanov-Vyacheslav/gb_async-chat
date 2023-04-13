@@ -4,18 +4,21 @@ import time
 import traceback
 from json import JSONDecodeError
 from socket import SOCK_STREAM, AF_INET, socket
-from threading import Thread
+from threading import Thread, Lock
 from typing import Optional
 
 from jsonschema.exceptions import ValidationError
 
 from .logger import logger
 from gb_chat.tools.validator import Validator
-from gb_chat.tools.requests import request_msg, request_presence, request_quit
+from gb_chat.tools.requests import request_msg, request_presence, request_quit, request_get_contacts
 from gb_chat.metaclass import ClientVerifier
+from gb_chat.storage.client import ClientDB
+
+LOCK = Lock()
 
 
-class ChatClient(metaclass=ClientVerifier):
+class ChatClient:
     def __init__(self, config: dict):
         self._config = config
         self.encoding = config["encoding"]
@@ -25,8 +28,11 @@ class ChatClient(metaclass=ClientVerifier):
         self.account = config["account"]
         self.validator = Validator(config["schema"])
         self.__is_connected = False
+        self.db = ClientDB()
+        self.session = 1
 
-    def init_socket(self):
+    def init(self):
+        self.db.init("client_{}.db".format(self.account["login"]))
         _socket = socket(AF_INET, SOCK_STREAM)
         self.socket = _socket
         logger.info("Client socket init at {address}:{port}".format(
@@ -54,7 +60,7 @@ class ChatClient(metaclass=ClientVerifier):
             return True
 
     def connect(self):
-        self.init_socket()
+        self.init()
         logger.debug("client: {name}, try connect to {ip}:{port}".format(
             name=self.account["login"], ip=self._config["address"], port=self._config["port"]
         ))
@@ -76,11 +82,24 @@ class ChatClient(metaclass=ClientVerifier):
         action = data["action"]
         if action == "msg":
             if self.validator.validate_data(action, data):
+                sender = data["from"]
+                recipient = data["to"]
+                self.db.Messages.create(session=self.session, message=data["message"],
+                                        sender=sender, recipient=recipient,
+                                        is_private=(sender.find("#") == -1 and recipient.find("#") == -1))
                 msg = data
         elif action == "probe":
             if self.validator.validate_data(action, data):
                 self.send_data(data=request_presence(self.account["login"]))
         return msg
+
+    def get_contacts(self):
+        logger.debug("client: {name}, try get_contacts".format(name=self.account["login"]))
+        request = request_get_contacts(self.account["login"])
+        self.send_data(data=request)
+
+    def save_contacts(self, contacts: list):
+        self.db.Contacts.refresh(contacts=contacts, session=self.session)
 
     def receiver(self):
         while True:
@@ -144,7 +163,6 @@ class ChatClient(metaclass=ClientVerifier):
             self.send_data(data=msg)
 
     def run(self):
-        self.cli()
         if self.__is_connected:
             receiver = Thread(target=self.receiver)
             receiver.daemon = True

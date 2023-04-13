@@ -5,7 +5,7 @@
   "properties": {
     "action": {
       "type": "string",
-      "enum":["presence", "probe", "msg", "quit", "authenticate", "join", "leave"]
+      "enum":["presence", "probe", "msg", "quit", "authenticate", "join", "leave", "get_contacts", "add_contact" , "del_contact"]
     },
     "time": {"type": "number"},
     "type": {"type": "string"},
@@ -14,6 +14,8 @@
     "from": {"type": "string"},
     "encoding": {"type": "string"},
     "message": {"type": "string"},
+    "user_id": {"type": "string"},
+    "user_login": {"type": "string"},
     "user": {
       "type": "object",
       "properties": {
