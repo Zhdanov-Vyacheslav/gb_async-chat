@@ -7,16 +7,16 @@ class Contacts:
         self.db = db
 
     def __call__(self, data: dict, client: socket, *args, **kwargs) -> Union[bool, list]:
+        result = False
         moderator = data.get("user_login")
-        if self.is_moderator(moderator, client):
-            return getattr(self, data["action"])(data)
-        else:
-            return False
+        if self.is_moderator(moderator, client) or data["action"] == "get_contacts":
+            result = getattr(self, data["action"])(data)
+        return result
 
     def is_moderator(self, name: str, client: socket) -> bool:
         queue = self.db.History \
             .select(self.db.History) \
-            .join(Contacts) \
+            .join(self.db.Contacts) \
             .join(self.db.Clients) \
             .where((self.db.Clients.name == name) & (self.db.Clients.is_moderator == True))
         if len(queue) == 1:

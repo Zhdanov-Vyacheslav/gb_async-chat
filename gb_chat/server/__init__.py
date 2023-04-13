@@ -85,41 +85,42 @@ class ChatServer(Thread):
 
     def action(self, client: socket, data: dict) -> Optional[dict]:
         msg = None
-        action = data["action"]
-        if action == "msg":
-            if self.validator.validate_data(action, data):
-                msg = data
-        elif action == "presence":
-            if self.validator.validate_data(action, data):
-                self.send_data(client=client, data=ok())
-        elif action == "authenticate":
-            if self.validator.validate_data(action, data):
-                if data["user"].get("password", None) is not None:
-                    if self.login(data[["user"]], client):
-                        self.send_data(client=client, data=ok())
+        if isinstance(data, dict):
+            action = data["action"]
+            if action == "msg":
+                if self.validator.validate_data(action, data):
+                    msg = data
+            elif action == "presence":
+                if self.validator.validate_data(action, data):
+                    self.send_data(client=client, data=ok())
+            elif action == "authenticate":
+                if self.validator.validate_data(action, data):
+                    if data["user"].get("password", None) is not None:
+                        if self.login(data[["user"]], client):
+                            self.send_data(client=client, data=ok())
+                        else:
+                            self.send_data(client=client, data=error_400(code=409))
+            elif action in ["add_contact", "del_contact", "get_contacts"]:
+                if self.validator.validate_data("contacts", data):
+                    result = self.contacts(data, client)
+                    if isinstance(result, bool):
+                        if result:
+                            self.send_data(client=client, data=ok())
+                        else:
+                            self.send_data(client=client, data=error_400())
                     else:
-                        self.send_data(client=client, data=error_400(code=409))
-        elif action in ["add_contact", "del_contact", "get_contacts"]:
-            if self.validator.validate_data("contacts", data):
-                result = self.contacts(data, client)
-                if isinstance(result, bool):
-                    if result:
-                        self.send_data(client=client, data=ok())
-                    else:
-                        self.send_data(client=client, data=error_400())
-                else:
-                    self.send_data(client=client, data=ok(str(result), code=202))
-        elif action == "quit":
-            if client in self.clients:
-                msg = request_msg(
-                    sender="server", to="global", encoding=self.encoding,
-                    message="Пользователь: {user}, покинул чат!".format(user=self.clients[client])
-                )
-            self.quite(client, ok("Goodbye!"))
-        elif action == "join":
-            pass
-        elif action == "leave":
-            pass
+                        self.send_data(client=client, data=ok(result, code=202))
+            elif action == "quit":
+                if client in self.clients:
+                    msg = request_msg(
+                        sender="server", to="global", encoding=self.encoding,
+                        message="Пользователь: {user}, покинул чат!".format(user=self.clients[client])
+                    )
+                self.quite(client, ok("Goodbye!"))
+            elif action == "join":
+                pass
+            elif action == "leave":
+                pass
         return msg
 
     def quite(self, client: socket, msg: dict):
@@ -150,12 +151,15 @@ class ChatServer(Thread):
         for client in clients:
             try:
                 data = self.get_data(client=client)
-                if self.validator.validate_data("action", data):
-                    if data["action"] == "msg":
-                        self.validator.validate_data("msg", data)
-                        data = self.action(client, data)
-                        if data is not None:
-                            msgs[client] = data
+                data = self.action(client, data)
+                if data is not None:
+                    msgs[client] = data
+                # if self.validator.validate_data("action", data):
+                #     if data["action"] == "msg":
+                #         self.validator.validate_data("msg", data)
+                #         data = self.action(client, data)
+                #         if data is not None:
+                #             msgs[client] = data
             except (JSONDecodeError, ValidationError) as e:
                 error = error_400()
                 logger.error(str(e))
@@ -216,7 +220,6 @@ class ChatServer(Thread):
 
     def run(self):
         self.init()
-        j = self.db.Clients.select()
         while True:
             self.accept()
             read = []

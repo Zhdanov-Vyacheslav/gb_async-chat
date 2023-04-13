@@ -30,7 +30,7 @@ def error_500(error: str = None, code: int = 500) -> dict:
     return result
 
 
-def ok(msg: str = None, code: int = 200) -> dict:
+def ok(msg=None, code: int = 200) -> dict:
     result = {
         "response": code
     }

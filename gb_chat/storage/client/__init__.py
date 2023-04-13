@@ -10,11 +10,12 @@ TABLES = [
 
 
 class ClientDB:
-    def __init__(self, path):
-        self.path = path
+    def __init__(self):
+        self.path = None
         self.__db = None
 
-    def init(self):
+    def init(self, path):
+        self.path = path
         self.__db = SqliteDatabase(self.path)
         self.__db.bind(TABLES)
         for table in TABLES:
@@ -33,6 +34,6 @@ class ClientDB:
 
 
 if __name__ == "__main__":
-    s = ClientDB("lol.db")
-    s.init()
+    s = ClientDB()
+    s.init("lol.db")
     s.close()

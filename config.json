@@ -19,7 +19,8 @@
       "action": "schemas/action.json",
       "msg": "schemas/action/msg.json",
       "presence": "schemas/action/presence.json",
-      "authenticate": "schemas/action/authenticate.json"
+      "authenticate": "schemas/action/authenticate.json",
+      "contacts": "schemas/action/contacts.json"
     }
   },
   "client": {
