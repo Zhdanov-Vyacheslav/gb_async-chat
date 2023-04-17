@@ -2,21 +2,28 @@ import json
 import sys
 import time
 import traceback
+from datetime import datetime
 from json import JSONDecodeError
 from socket import SOCK_STREAM, AF_INET, socket
-from threading import Thread
+from threading import Thread, Lock
 from typing import Optional
 
+from gb_chat.tools.responses import RESPONSE
 from jsonschema.exceptions import ValidationError
 
 from .logger import logger
 from gb_chat.tools.validator import Validator
-from gb_chat.tools.requests import request_msg, request_presence, request_quit
+from gb_chat.tools.requests import request_msg, request_presence, request_quit, request_get_contacts, \
+    request_authenticate
 from gb_chat.metaclass import ClientVerifier
+from gb_chat.storage.client import ClientDB
+
+LOCK = Lock()
 
 
-class ChatClient(metaclass=ClientVerifier):
+class ChatClient:
     def __init__(self, config: dict):
+        self.__is_logged = None
         self._config = config
         self.encoding = config["encoding"]
         self.socket = None
@@ -24,9 +31,12 @@ class ChatClient(metaclass=ClientVerifier):
         self.port = config["port"]
         self.account = config["account"]
         self.validator = Validator(config["schema"])
-        self.__is_connected = False
+        self.is_connected = False
+        self.db = ClientDB()
+        self.session = 1
 
-    def init_socket(self):
+    def init(self):
+        self.db.init("client_{}_{}.db".format(self.account["login"], str(datetime.utcnow().microsecond)))
         _socket = socket(AF_INET, SOCK_STREAM)
         self.socket = _socket
         logger.info("Client socket init at {address}:{port}".format(
@@ -42,19 +52,42 @@ class ChatClient(metaclass=ClientVerifier):
         data = json.loads(data)
         return data
 
-    def check_data(self, data) -> bool:
-        if "response" in data and data["response"] != 200:
-            if "error" in data:
-                print(data["error"])
-            self.socket.close()
-            return False
+    # def check_data(self, data) -> bool:
+    #     if "response" in data and data["response"] != 200:
+    #         if "error" in data:
+    #             print(data["error"])
+    #         self.socket.close()
+    #         return False
+    #     else:
+    #         if "alert" in data:
+    #             print(data["alert"])
+    #         return True
+
+    def responses(self, response: dict) -> Optional[str]:
+        message = None
+        code = response["response"]
+        data = response["alert"] if "alert" in response else response["error"] if "error" in response else ""
+        if code in RESPONSE:
+            if code == 202:
+                if isinstance(data, list):
+                    self.save_contacts(data)
+            else:
+                if code == 203:
+                    self.is_connected = True
+                    self.__is_logged = True
+                elif code == 401:
+                    self.__is_logged = False
+                    data = ""
+                elif code == 402:
+                    self.__is_logged = False
+                message = data if data != "" else RESPONSE[code]
+                logger.info(message)
         else:
-            if "alert" in data:
-                print(data["alert"])
-            return True
+            message = "Unknown response: {code} {message}".format(code=code, message=data)
+        return message
 
     def connect(self):
-        self.init_socket()
+        self.init()
         logger.debug("client: {name}, try connect to {ip}:{port}".format(
             name=self.account["login"], ip=self._config["address"], port=self._config["port"]
         ))
@@ -68,19 +101,37 @@ class ChatClient(metaclass=ClientVerifier):
         ))
         self.send_data(data=presence)
         data = self.get_data()
-        if self.check_data(data):
-            self.__is_connected = True
+        if "response" in data:
+            if data["response"] == 200:
+                self.__is_logged = True
+            return self.responses(data)
+
+    def login(self):
+        self.send_data(data=request_authenticate(account_name=self.account["login"], password=self.account["password"]))
 
     def action(self, data: dict) -> Optional[dict]:
         msg = None
         action = data["action"]
         if action == "msg":
             if self.validator.validate_data(action, data):
+                sender = data["from"]
+                recipient = data["to"]
+                self.db.Messages.create(session=self.session, message=data["message"],
+                                        sender=sender, recipient=recipient,
+                                        is_private=(sender.find("#") == -1 and recipient.find("#") == -1))
                 msg = data
         elif action == "probe":
             if self.validator.validate_data(action, data):
                 self.send_data(data=request_presence(self.account["login"]))
         return msg
+
+    def get_contacts(self):
+        logger.debug("client: {name}, try get_contacts".format(name=self.account["login"]))
+        request = request_get_contacts(self.account["login"])
+        self.send_data(data=request)
+
+    def save_contacts(self, contacts: list):
+        self.db.Contacts.refresh(contacts=contacts, session=self.session)
 
     def receiver(self):
         while True:
@@ -111,7 +162,7 @@ class ChatClient(metaclass=ClientVerifier):
             elif command == "connect":
                 print("Введите знак '!' чтобы перейти в cli ")
                 self.connect()
-                if self.__is_connected:
+                if self.is_connected:
                     break
                 else:
                     print("Подключение не удалось")
@@ -144,8 +195,7 @@ class ChatClient(metaclass=ClientVerifier):
             self.send_data(data=msg)
 
     def run(self):
-        self.cli()
-        if self.__is_connected:
+        if self.is_connected:
             receiver = Thread(target=self.receiver)
             receiver.daemon = True
             receiver.start()
