@@ -18,22 +18,30 @@ class GUIChatClient:
         self.__client = client
 
     def login(self):
+        msg = None
         login = Login()
         login._login.setText(self.__client.account["login"])
         login.show()
         self.app.exec_()
         if login.login:
-            self.__client.account["login"] = login.login
+            self.__client.account = {"login": login.login, "password": login.password}
             del login
+            msg = self.__client.connect()
         else:
             exit(0)
+        return msg
 
     def run(self):
         self.app = QApplication([])
-        self.login()
-        self.__client.connect()
+        msg = self.login()
         self.__client.db.Contacts.refresh([], session=1)
         main = ClientMainWindow(self.__client)
+        if msg is not None:
+            main.message({
+                "from": "Server",
+                "to": self.__client.account["login"],
+                "message": msg
+            })
         receiver = Thread(target=main.receiver)
         receiver.daemon = True
         receiver.start()

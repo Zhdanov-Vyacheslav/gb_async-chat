@@ -1,6 +1,9 @@
 import time
 
 RESPONSE = {
+    200: "Ok",
+    202: "Contacts list",
+    203: "Login successful",
     400: "incorrect JSON object",
     401: "Permissions denied, you need to log in",
     402: 'This could be "wrong password" or "no account with that name"',

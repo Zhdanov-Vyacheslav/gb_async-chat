@@ -11,7 +11,7 @@ class Chat(QDialog):
         self.setFixedSize(756, 534)
 
         self.refresh = QPushButton("Обновить", self)
-        self.refresh.setGeometry(QRect(10, 480, 251, 31))
+        self.refresh.setGeometry(QRect(10, 450, 251, 31))
 
         self.message = QTextEdit(self)
         self.message.setGeometry(QRect(290, 420, 451, 61))
@@ -20,9 +20,12 @@ class Chat(QDialog):
         self.label_message.setGeometry(QRect(290, 400, 171, 16))
 
         self._contacts = QListView(self)
-        self._contacts.setGeometry(QRect(10, 20, 251, 461))
+        self._contacts.setGeometry(QRect(10, 20, 251, 431))
         self.contacts = QStandardItemModel()
         self._contacts.setModel(self.contacts)
+
+        self.login = QPushButton("Авторизоваться", self)
+        self.login.setGeometry(QRect(10, 480, 251, 31))
 
         self._messages = QListView(self)
         self._messages.setGeometry(QRect(290, 30, 451, 371))

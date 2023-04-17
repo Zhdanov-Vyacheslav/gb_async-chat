@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from peewee import AutoField, DateField, IntegerField, ForeignKeyField, CharField, Model
+from peewee import AutoField, DateField, IntegerField, ForeignKeyField, CharField, BooleanField
 
 from gb_chat.storage import BaseModel
 from gb_chat.storage.server.client import Client
@@ -12,6 +12,7 @@ class History(BaseModel):
     ip = CharField(null=False)
     port = IntegerField(null=False)
     logging = DateField(null=False, default=datetime.utcnow())
+    is_authorize = BooleanField(default=False)
 
     class Meta:
         table_name = "History"

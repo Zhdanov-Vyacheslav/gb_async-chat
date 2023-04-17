@@ -1,5 +1,6 @@
 import json
 import select
+from datetime import datetime
 from json import JSONDecodeError
 from socket import AF_INET, SOCK_STREAM, socket
 from threading import Thread
@@ -44,7 +45,7 @@ class ChatServer(Thread):
             try:
                 self.send_data(client=client, data=msg)
                 client.close()
-            except ConnectionResetError:
+            except (ConnectionResetError, OSError):
                 pass
         self.db.Contacts.drop_table()
         self.db.close()
@@ -95,9 +96,13 @@ class ChatServer(Thread):
                     self.send_data(client=client, data=ok())
             elif action == "authenticate":
                 if self.validator.validate_data(action, data):
-                    if data["user"].get("password", None) is not None:
-                        if self.login(data[["user"]], client):
-                            self.send_data(client=client, data=ok())
+                    user = data["user"]
+                    if "password" in user:
+                        client_id = self.db.Clients.login(name=user["account_name"], password=user["password"])
+                        if client_id is None:
+                            self.send_data(client=client, data=error_400(code=402))
+                        elif self.login(user, client, client_id):
+                            self.send_data(client=client, data=ok(code=203))
                         else:
                             self.send_data(client=client, data=error_400(code=409))
             elif action in ["add_contact", "del_contact", "get_contacts"]:
@@ -178,18 +183,23 @@ class ChatServer(Thread):
 
         return msgs
 
-    def login(self, account: dict, client: socket):
-        name = account["account_name"]
-        password = account.get("password", None)
-        client_id = self.db.Clients.login(name=name)
+    def login(self, user: dict, client: socket, client_id: int) -> bool:
+        result = False
+        password = user["password"]
         contact = self.db.Contacts.get(self.db.Contacts.client_id == client_id)
+        ip, port = client.getpeername()
         if contact is None:
-            ip, port = client.getpeername()
             history_id = self.db.History.login(client_id=client_id, ip=ip, port=port, password=password)
             self.db.Contacts.create(client_id=client_id, history_id=history_id)
-            return True
-        else:
-            return False
+            result = True
+        elif password is not None:
+            history_id = self.db.History.login(client_id=client_id, ip=ip, port=port, password=password)
+            contact.current_update(client_id=client_id, history_id=history_id)
+            contact.save()
+            result = True
+        if result:
+            self.clients[client] = user["account_name"]
+        return result
 
     def accept(self):
         try:
@@ -204,9 +214,15 @@ class ChatServer(Thread):
             if self.validator.validate_data("presence", data):
                 user = data["user"]["account_name"]
                 if user not in self.clients.values():
-                    self.clients.setdefault(client, user)
-                    self.send_data(client=client, data=ok("Welcome"))
-                    self.login(data["user"], client)
+                    # Если у пользователя есть пароль, требуем авторизоваться,
+                    # в словаре сокетов даем этому сокету временное имя
+                    if self.db.Clients.is_registered(user):
+                        user = "{}-{}".format(user, str(datetime.utcnow()).replace(" ", "_"))
+                        self.clients.setdefault(client, user)
+                        self.send_data(client=client, data=error_400(code=401, error=user))
+                    else:
+                        self.clients.setdefault(client, user)
+                        self.send_data(client=client, data=ok("Welcome"))
                 else:
                     self.send_data(client=client, data=error_400(code=409))
                     client.close()

@@ -27,3 +27,11 @@ class Contacts(BaseModel):
         for user in Client.select(Client.name).join(cls):
             result.append(user.name)
         return result
+
+    @classmethod
+    def is_authorize(cls, name: str):
+        result = False
+        history = History.select(History.is_authorize).join(cls).join(Client).where(Client.name == name).limit(1)
+        if len(history) > 0:
+            result = history[0].is_authorize
+        return result

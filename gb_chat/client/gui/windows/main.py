@@ -25,6 +25,7 @@ class ClientMainWindow(QMainWindow):
 
         self.chat = Chat()
         self.chat.send.clicked.connect(self.send_message)
+        self.chat.login.clicked.connect(self.login)
         self.chat.refresh.clicked.connect(self.refresh_clients)
         self.chat._contacts.doubleClicked.connect(self.select_recipient)
 
@@ -32,6 +33,9 @@ class ClientMainWindow(QMainWindow):
         self.set_disabled_input()
 
     def set_disabled_input(self):
+        # Блокируем доступ к списку контактов если данный пользователь должен авторизовать
+        if not self.client.is_connected:
+            self.chat._contacts.setDisabled(True)
         self.chat.message.setText("Не выбран получатель. (Двойной клик по участнику чата)")
         self.chat.message.setDisabled(True)
         self.chat.send.setDisabled(True)
@@ -45,6 +49,9 @@ class ClientMainWindow(QMainWindow):
         self.chat.message.clear()
         self.chat.send.setDisabled(False)
         self.chat.message.setDisabled(False)
+
+    def login(self):
+        self.client.login()
 
     def refresh_clients(self):
         self.chat.contacts.clear()
@@ -88,16 +95,24 @@ class ClientMainWindow(QMainWindow):
                         if msg is not None:
                             self.message(msg)
                 else:
-                    if "response" in data and data["response"] == 202:
-                        if "alert" in data and isinstance(data["alert"], list):
-                            self.client.save_contacts(data["alert"])
+                    if "response" in data:
+                        msg = self.client.responses(data)
+                        if msg is not None:
+                            self.message({
+                                "from": "System",
+                                "to": self.user,
+                                "message": msg
+                            })
+                        if data["response"] == 203:
+                            self.chat.login.setDisabled(True)
+                            self.chat._contacts.setDisabled(False)
             except (JSONDecodeError, ValidationError) as e:
                 logger.error(str(e))
             except (OSError, ConnectionError, ConnectionAbortedError, ConnectionResetError) as ex:
                 self.message({
                     "from": "System",
                     "to": self.user,
-                    "msg": "Соединение с сервером, разорвано"
+                    "message": "Соединение с сервером, разорвано"
                 })
                 logger.critical(ex.with_traceback(traceback.print_exc()), exc_info=True)
                 break
