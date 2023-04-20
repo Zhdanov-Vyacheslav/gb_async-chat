@@ -2,6 +2,7 @@ import os
 import traceback
 from argparse import ArgumentParser
 
+from gb_chat.client.gui import GUIChatClient
 from tools.config import prepare_config
 from client import ChatClient, logger
 
@@ -16,10 +17,17 @@ def main():
     options = ap.parse_args()
     config = prepare_config(options, config_path=CONFIG_PATH, service="client")
     client = ChatClient(config)
+    gui = GUIChatClient(client)
     try:
-        client.run()
+        gui.run()
     except Exception as e:
         logger.critical(e.with_traceback(traceback.print_exc()), exc_info=True)
+
+    # try:
+    #     client.cli()
+    #     client.run()
+    # except Exception as e:
+    #     logger.critical(e.with_traceback(traceback.print_exc()), exc_info=True)
 
 
 if __name__ == "__main__":

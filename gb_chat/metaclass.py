@@ -54,7 +54,7 @@ class ServerVerifier(type):
         methods = []
         attrs = []
         classes = []
-        allowed = ["Validator"]
+        allowed = ["Validator", "ServerDB"]
 
         for key, value in clsdict.items():
             if isinstance(value, socket):

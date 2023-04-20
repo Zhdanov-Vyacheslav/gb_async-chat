@@ -1,0 +1,13 @@
+{
+  "$schema": "http://schema#",
+  "id": "urn:gb_achat-contacts#",
+  "type": "object",
+  "properties": {
+    "action": {"type": "string", "enum":["add_contact", "del_contact", "get_contacts"]},
+    "user_id": {"type": "string"},
+    "time": {"type": "number"},
+    "user_login": {"type": "string"}
+  },
+  "required": ["action", "time", "user_login"],
+  "additionalProperties": false
+}
