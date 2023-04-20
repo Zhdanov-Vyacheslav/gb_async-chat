@@ -53,6 +53,7 @@ class ChatServer(Thread):
             self.socket.close()
 
     def init(self):
+        """Инициализировать сокет, базу данных и очистить список контактов"""
         self.db.init()
         # Принудительная очистка списка пользователей
         self.db.Contacts.drop_table()

@@ -3,3 +3,4 @@ PyYAML~=6.0
 jsonschema~=4.17.3
 peewee~=3.16.0
 PyQt5~=5.15.9
+Sphinx==6.1.3
