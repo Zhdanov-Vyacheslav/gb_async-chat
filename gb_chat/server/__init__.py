@@ -1,20 +1,24 @@
 import json
 import select
+from datetime import datetime
 from json import JSONDecodeError
 from socket import AF_INET, SOCK_STREAM, socket
+from threading import Thread
 from typing import Optional
 
 from jsonschema.exceptions import ValidationError
 
+from .contacts import Contacts
 from .logger import logger
-from gb_chat.tools.validator import Validator
-from gb_chat.tools.responses import error_400, error_500, ok, RESPONSE
-from gb_chat.tools.requests import request_msg
-from gb_chat.tools.descriptors import Port
-from gb_chat.metaclass import ServerVerifier
+from ..tools.validator import Validator
+from ..tools.responses import error_400, error_500, ok, RESPONSE
+from ..tools.requests import request_msg
+from ..tools.descriptors import Port
+from ..metaclass import ServerVerifier
+from ..storage.server import ServerDB
 
 
-class ChatServer(metaclass=ServerVerifier):
+class ChatServer(Thread):
     port = Port()
 
     def __init__(self, config):
@@ -28,8 +32,37 @@ class ChatServer(metaclass=ServerVerifier):
         self.encoding = config["encoding"]
         self.limit = config["input_limit"]
         self.select_wait = config["select_wait"]
+        self.db = ServerDB("server.db")
+        self.contacts = Contacts(self.db)
+        super().__init__()
 
-    def init_socket(self):
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        msg = request_msg(sender="server", to="global", encoding=self.encoding, message="Сервер выключился!")
+        for client in self.clients:
+            try:
+                self.send_data(client=client, data=msg)
+                client.close()
+            except (ConnectionResetError, OSError):
+                pass
+        self.db.Contacts.drop_table()
+        self.db.close()
+        if self.socket is not None:
+            self.socket.close()
+
+    def init(self):
+        """Инициализировать сокет, базу данных и очистить список контактов"""
+        self.db.init()
+        # Принудительная очистка списка пользователей
+        self.db.Contacts.drop_table()
+        self.db.Contacts.create_table()
+        self.clients = {}
+
+        self.__init_socket()
+
+    def __init_socket(self):
         _socket = socket(AF_INET, SOCK_STREAM)
         _socket.bind((self.address, self.port))
         _socket.settimeout(self.timeout)
@@ -54,27 +87,46 @@ class ChatServer(metaclass=ServerVerifier):
 
     def action(self, client: socket, data: dict) -> Optional[dict]:
         msg = None
-        action = data["action"]
-        if action == "msg":
-            if self.validator.validate_data(action, data):
-                msg = data
-        elif action == "presence":
-            if self.validator.validate_data(action, data):
-                self.send_data(client=client, data=ok())
-        elif action == "authenticate":
-            if self.validator.validate_data(action, data):
+        if isinstance(data, dict):
+            action = data["action"]
+            if action == "msg":
+                if self.validator.validate_data(action, data):
+                    msg = data
+            elif action == "presence":
+                if self.validator.validate_data(action, data):
+                    self.send_data(client=client, data=ok())
+            elif action == "authenticate":
+                if self.validator.validate_data(action, data):
+                    user = data["user"]
+                    if "password" in user:
+                        client_id = self.db.Clients.login(name=user["account_name"], password=user["password"])
+                        if client_id is None:
+                            self.send_data(client=client, data=error_400(code=402))
+                        elif self.login(user, client, client_id):
+                            self.send_data(client=client, data=ok(code=203))
+                        else:
+                            self.send_data(client=client, data=error_400(code=409))
+            elif action in ["add_contact", "del_contact", "get_contacts"]:
+                if self.validator.validate_data("contacts", data):
+                    result = self.contacts(data, client)
+                    if isinstance(result, bool):
+                        if result:
+                            self.send_data(client=client, data=ok())
+                        else:
+                            self.send_data(client=client, data=error_400())
+                    else:
+                        self.send_data(client=client, data=ok(result, code=202))
+            elif action == "quit":
+                if client in self.clients:
+                    msg = request_msg(
+                        sender="server", to="global", encoding=self.encoding,
+                        message="Пользователь: {user}, покинул чат!".format(user=self.clients[client])
+                    )
+                self.quite(client, ok("Goodbye!"))
+            elif action == "join":
                 pass
-        elif action == "quit":
-            if client in self.clients:
-                msg = request_msg(
-                    sender="server", to="global", encoding=self.encoding,
-                    message="Пользователь: {user}, покинул чат!".format(user=self.clients[client])
-                )
-            self.quite(client, ok("Goodbye!"))
-        elif action == "join":
-            pass
-        elif action == "leave":
-            pass
+            elif action == "leave":
+                pass
         return msg
 
     def quite(self, client: socket, msg: dict):
@@ -82,6 +134,7 @@ class ChatServer(metaclass=ServerVerifier):
             self.clients.pop(client)
             self.send_data(client=client, data=msg)
             client.close()
+            self.db.Contacts.delete_by_client(self.db.Clients.name == self.clients[client])
 
     def writer(self, clients: list[socket], msgs: dict):
         for sender, msg in msgs.items():
@@ -104,12 +157,15 @@ class ChatServer(metaclass=ServerVerifier):
         for client in clients:
             try:
                 data = self.get_data(client=client)
-                if self.validator.validate_data("action", data):
-                    if data["action"] == "msg":
-                        self.validator.validate_data("msg", data)
-                        data = self.action(client, data)
-                        if data is not None:
-                            msgs[client] = data
+                data = self.action(client, data)
+                if data is not None:
+                    msgs[client] = data
+                # if self.validator.validate_data("action", data):
+                #     if data["action"] == "msg":
+                #         self.validator.validate_data("msg", data)
+                #         data = self.action(client, data)
+                #         if data is not None:
+                #             msgs[client] = data
             except (JSONDecodeError, ValidationError) as e:
                 error = error_400()
                 logger.error(str(e))
@@ -128,6 +184,24 @@ class ChatServer(metaclass=ServerVerifier):
 
         return msgs
 
+    def login(self, user: dict, client: socket, client_id: int) -> bool:
+        result = False
+        password = user["password"]
+        contact = self.db.Contacts.get(self.db.Contacts.client_id == client_id)
+        ip, port = client.getpeername()
+        if contact is None:
+            history_id = self.db.History.login(client_id=client_id, ip=ip, port=port, password=password)
+            self.db.Contacts.create(client_id=client_id, history_id=history_id)
+            result = True
+        elif password is not None:
+            history_id = self.db.History.login(client_id=client_id, ip=ip, port=port, password=password)
+            contact.current_update(client_id=client_id, history_id=history_id)
+            contact.save()
+            result = True
+        if result:
+            self.clients[client] = user["account_name"]
+        return result
+
     def accept(self):
         try:
             client, addr = self.socket.accept()
@@ -141,8 +215,17 @@ class ChatServer(metaclass=ServerVerifier):
             if self.validator.validate_data("presence", data):
                 user = data["user"]["account_name"]
                 if user not in self.clients.values():
-                    self.clients.setdefault(client, user)
-                    self.send_data(client=client, data=ok("Welcome"))
+                    # Если у пользователя есть пароль, требуем авторизоваться,
+                    # в словаре сокетов даем этому сокету временное имя
+                    if self.db.Clients.is_registered(user):
+                        user = "{}-{}".format(user, str(datetime.utcnow()).replace(" ", "_"))
+                        self.clients.setdefault(client, user)
+                        self.send_data(client=client, data=error_400(code=401, error=user))
+                    else:
+                        self.clients.setdefault(client, user)
+                        client_id = self.db.Clients.login(name=user, password=None)
+                        self.login(user={"account_name": user, "password": None}, client=client, client_id=client_id)
+                        self.send_data(client=client, data=ok("Welcome"))
                 else:
                     self.send_data(client=client, data=error_400(code=409))
                     client.close()
@@ -155,7 +238,8 @@ class ChatServer(metaclass=ServerVerifier):
             logger.error(str(e))
 
     def run(self):
-        self.init_socket()
+        self.init()
+        print("Server started {}".format(self.socket.getsockname()))
         while True:
             self.accept()
             read = []
