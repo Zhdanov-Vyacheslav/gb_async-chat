@@ -6,9 +6,9 @@ from PyQt5.QtGui import QStandardItem, QBrush, QColor
 from PyQt5.QtWidgets import QMainWindow, QMessageBox
 from jsonschema.exceptions import ValidationError
 
-from gb_chat.client import logger, ChatClient
-from gb_chat.client.gui import Chat
-from gb_chat.tools.requests import request_msg
+from .. import Chat
+from ... import logger, ChatClient
+from ....tools.requests import request_msg
 
 
 class ClientMainWindow(QMainWindow):

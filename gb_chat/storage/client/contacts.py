@@ -2,7 +2,7 @@ from typing import Union
 
 from peewee import AutoField, CharField, IntegerField
 
-from gb_chat.storage import BaseModel
+from .. import BaseModel
 
 
 class Contacts(BaseModel):

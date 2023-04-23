@@ -1,12 +1,10 @@
-import os
-import sys
 from threading import Lock, Thread, Event
 
 from PyQt5.QtCore import QTimer
-from PyQt5.QtWidgets import QApplication, QMessageBox
-from gb_chat.client import ChatClient, logger
-from gb_chat.client.gui.windows import Login, Chat
-from gb_chat.client.gui.windows.main import ClientMainWindow
+from PyQt5.QtWidgets import QApplication
+
+from .windows import Login, Chat, ClientMainWindow
+from .. import ChatClient
 
 LOCK = Lock()
 EVENT = Event()

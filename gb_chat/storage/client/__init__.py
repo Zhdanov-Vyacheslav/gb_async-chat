@@ -1,7 +1,7 @@
 from peewee import SqliteDatabase
 
-from gb_chat.storage.client.contacts import Contacts
-from gb_chat.storage.client.messages import Messages
+from .contacts import Contacts
+from .messages import Messages
 
 TABLES = [
     Contacts,

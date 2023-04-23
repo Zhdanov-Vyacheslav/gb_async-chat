@@ -2,7 +2,7 @@ from datetime import datetime
 
 from peewee import AutoField, DateField, CharField, TextField, BooleanField, IntegerField
 
-from gb_chat.storage import BaseModel
+from .. import BaseModel
 
 
 class Messages(BaseModel):

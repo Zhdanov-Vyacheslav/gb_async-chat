@@ -1,8 +1,8 @@
 from peewee import AutoField, ForeignKeyField
 
-from gb_chat.storage import BaseModel
-from gb_chat.storage.server.client import Client
-from gb_chat.storage.server.history import History
+from .client import Client
+from .history import History
+from .. import BaseModel
 
 
 class Contacts(BaseModel):

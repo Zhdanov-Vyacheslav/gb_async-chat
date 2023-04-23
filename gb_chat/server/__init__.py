@@ -10,12 +10,12 @@ from jsonschema.exceptions import ValidationError
 
 from .contacts import Contacts
 from .logger import logger
-from gb_chat.tools.validator import Validator
-from gb_chat.tools.responses import error_400, error_500, ok, RESPONSE
-from gb_chat.tools.requests import request_msg
-from gb_chat.tools.descriptors import Port
-from gb_chat.metaclass import ServerVerifier
-from gb_chat.storage.server import ServerDB
+from ..tools.validator import Validator
+from ..tools.responses import error_400, error_500, ok, RESPONSE
+from ..tools.requests import request_msg
+from ..tools.descriptors import Port
+from ..metaclass import ServerVerifier
+from ..storage.server import ServerDB
 
 
 class ChatServer(Thread):
@@ -223,6 +223,8 @@ class ChatServer(Thread):
                         self.send_data(client=client, data=error_400(code=401, error=user))
                     else:
                         self.clients.setdefault(client, user)
+                        client_id = self.db.Clients.login(name=user, password=None)
+                        self.login(user={"account_name": user, "password": None}, client=client, client_id=client_id)
                         self.send_data(client=client, data=ok("Welcome"))
                 else:
                     self.send_data(client=client, data=error_400(code=409))
@@ -237,6 +239,7 @@ class ChatServer(Thread):
 
     def run(self):
         self.init()
+        print("Server started {}".format(self.socket.getsockname()))
         while True:
             self.accept()
             read = []

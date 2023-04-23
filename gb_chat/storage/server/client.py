@@ -3,14 +3,14 @@ from datetime import datetime
 
 from peewee import AutoField, DateField, CharField, BooleanField, BlobField
 
-from gb_chat.storage import BaseModel
-from gb_chat.tools.hash import generate_hash
+from .. import BaseModel
+from ...tools.hash import generate_hash
 
 
 class Client(BaseModel):
     id = AutoField(primary_key=True)
     name = CharField(null=False, unique=True)
-    password = BlobField(null=False)
+    password = BlobField(null=True)
     salt = BlobField(null=False)
     created = DateField(null=False, default=datetime.utcnow())
     modified = DateField(null=False, default=datetime.utcnow())

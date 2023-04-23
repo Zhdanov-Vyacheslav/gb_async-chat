@@ -2,8 +2,8 @@ from datetime import datetime
 
 from peewee import AutoField, DateField, IntegerField, ForeignKeyField, CharField, BooleanField
 
-from gb_chat.storage import BaseModel
-from gb_chat.storage.server.client import Client
+from .client import Client
+from .. import BaseModel
 
 
 class History(BaseModel):

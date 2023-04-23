@@ -1,2 +1,3 @@
-from gb_chat.client.gui.windows.chat import Chat
-from gb_chat.client.gui.windows.login import Login
+from .chat import Chat
+from .login import Login
+from .main import ClientMainWindow

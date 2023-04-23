@@ -2,21 +2,20 @@ import json
 import sys
 import time
 import traceback
-from datetime import datetime
 from json import JSONDecodeError
 from socket import SOCK_STREAM, AF_INET, socket
 from threading import Thread, Lock
 from typing import Optional
 
-from gb_chat.tools.responses import RESPONSE
 from jsonschema.exceptions import ValidationError
 
 from .logger import logger
-from gb_chat.tools.validator import Validator
-from gb_chat.tools.requests import request_msg, request_presence, request_quit, request_get_contacts, \
+from ..tools.validator import Validator
+from ..tools.requests import request_msg, request_presence, request_quit, request_get_contacts, \
     request_authenticate
-from gb_chat.metaclass import ClientVerifier
-from gb_chat.storage.client import ClientDB
+from ..metaclass import ClientVerifier
+from ..storage.client import ClientDB
+from ..tools.responses import RESPONSE
 
 LOCK = Lock()
 
@@ -36,7 +35,7 @@ class ChatClient:
         self.session = 1
 
     def init(self):
-        self.db.init("client_{}_{}.db".format(self.account["login"], str(datetime.utcnow().microsecond)))
+        self.db.init("client_{}.db".format(self.account["login"]))
         _socket = socket(AF_INET, SOCK_STREAM)
         self.socket = _socket
         logger.info("Client socket init at {address}:{port}".format(
@@ -103,6 +102,7 @@ class ChatClient:
         data = self.get_data()
         if "response" in data:
             if data["response"] == 200:
+                self.is_connected = True
                 self.__is_logged = True
             return self.responses(data)
 

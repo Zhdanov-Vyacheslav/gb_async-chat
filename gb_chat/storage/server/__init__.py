@@ -1,8 +1,8 @@
 from peewee import SqliteDatabase, JOIN
 
-from gb_chat.storage.server.client import Client
-from gb_chat.storage.server.contacts import Contacts
-from gb_chat.storage.server.history import History
+from .client import Client
+from .contacts import Contacts
+from .history import History
 
 TABLES = [
     Contacts,

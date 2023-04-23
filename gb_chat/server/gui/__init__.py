@@ -5,10 +5,10 @@ from threading import Lock
 from PyQt5.QtCore import QTimer
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
-from gb_chat.server import ChatServer, logger
-from gb_chat.server.gui.models import clients, contacts
-from gb_chat.server.gui.windows import Main, Setting, History
-from gb_chat.storage.server import ServerDB
+from .models import clients, contacts
+from .windows import Main, Setting, History
+from .. import ChatServer, logger
+from ...storage.server import ServerDB
 
 LOCK = Lock()
 
